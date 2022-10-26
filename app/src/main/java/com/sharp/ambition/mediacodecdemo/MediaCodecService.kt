@@ -19,7 +19,7 @@ import android.util.Log
 class MediaCodecService : Service() {
 
     companion object {
-        val TAG = MediaCodecService::class.java.simpleName
+        val TAG: String = MediaCodecService::class.java.simpleName
     }
 
     private lateinit var virtualDisplay: VirtualDisplay
@@ -36,8 +36,6 @@ class MediaCodecService : Service() {
         mediaCodecDecorate = MediaCodecDecorate(this)
     }
 
-
-
     private fun createVirtualDisplay(mediaProjection: MediaProjection) {
         virtualDisplay = mediaProjection.createVirtualDisplay(
             "ScreenSharingDemo",
@@ -46,7 +44,13 @@ class MediaCodecService : Service() {
             resources.displayMetrics.densityDpi,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
             mediaCodecDecorate.surface,
-            null,
+            object: VirtualDisplay.Callback() {
+
+                override fun onResumed() {
+                    super.onResumed()
+                    mediaCodecDecorate.start()
+                }
+            },
             null
         )
     }

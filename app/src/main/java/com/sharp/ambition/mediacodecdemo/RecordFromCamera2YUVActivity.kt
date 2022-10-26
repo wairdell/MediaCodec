@@ -147,6 +147,7 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
     private fun initMediaMuxer() {
         val filePath = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)!!.absolutePath + "/" + System.currentTimeMillis().toString() + ".mp4"
         mediaMuxer = MediaMuxer(filePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+        mediaMuxer.setOrientationHint(90)
     }
 
     private fun initMediaCodec() {
@@ -170,7 +171,15 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
     fun onImageAvailable(reader: ImageReader) {
         Log.d(TAG, "onImageAvailable() called with: reader = $reader")
         val image: Image = reader.acquireNextImage() ?: return
+        /*val I420size: Int = image.width * image.height * 3 / 2;
+        val nv21 = ByteArray(I420size)
+        //提取YUV填充nv21数据
+        ImageUtil.YUVToNV21_NV12(image, nv21, image.width, image.height,"NV21")
+        val buffer: ByteArray = nv21*/
+//        val buffer: ByteArray = ImageUtil.rotateNV21_working(nv21, image.width, image.height, 90)
         val buffer: ByteArray = YUV_420_888toNV21(image)
+        /*val nv21_rotated = ByteArray(buffer.size)
+        ImageUtil.nv21_rotate_to_90(buffer, nv21_rotated, height, width)*/
         encodeFrame(buffer)
         image.close()
     }
@@ -201,7 +210,7 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
                 }
                 bufferInfo.presentationTimeUs = bufferInfo.presentationTimeUs - pts
                 mediaMuxer.writeSampleData(videoTrackIndex, outputBuffer, bufferInfo)
-                Log.d(VideoMediaCodecThread.TAG, "视频秒数时间戳 = " + bufferInfo.presentationTimeUs / 1000000.0f)
+                Log.d(VideoCodecThread.TAG, "视频秒数时间戳 = " + bufferInfo.presentationTimeUs / 1000000.0f)
                 mediaCodec.releaseOutputBuffer(outputBufferIndex, false)
                 outputBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 0)
             }

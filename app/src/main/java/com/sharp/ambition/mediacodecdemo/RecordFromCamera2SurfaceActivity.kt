@@ -87,7 +87,15 @@ class RecordFromCamera2SurfaceActivity : AppCompatActivity() {
                         captureRequestBuilder.addTarget(surface)
                         captureRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
                         captureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
-                        session.setRepeatingRequest(captureRequestBuilder.build(), null, cameraHandler)
+                        session.setRepeatingRequest(captureRequestBuilder.build(), object : CameraCaptureSession.CaptureCallback() {
+
+                            override fun onCaptureStarted(session: CameraCaptureSession, request: CaptureRequest, timestamp: Long, frameNumber: Long) {
+                                super.onCaptureStarted(session, request, timestamp, frameNumber)
+                                Log.d(TAG, "onCaptureStarted() called with: session = $session, request = $request, timestamp = $timestamp, frameNumber = $frameNumber")
+                                mediaCodecDecorate.start()
+                            }
+
+                        }, cameraHandler)
                         this@RecordFromCamera2SurfaceActivity.cameraCaptureSession = session
                     }
 

@@ -1,26 +1,27 @@
 package com.sharp.ambition.mediacodecdemo
 
+import android.annotation.SuppressLint
 import android.content.Context
-import android.media.MediaCodec
-import android.media.MediaCodecInfo
-import android.media.MediaFormat
-import android.media.MediaMuxer
+import android.media.*
 import android.os.Build
 import android.os.Environment
 import android.view.Surface
+import java.util.concurrent.atomic.AtomicBoolean
+
 
 /**
  * author : fengqiao
  * date   : 2022/10/24 18:18
  * desc   :
  */
-class MediaCodecDecorate(val context: Context) {
+class MediaCodecDecorate(private val context: Context) {
     lateinit var mediaCodec: MediaCodec
     lateinit var mediaMuxer: MediaMuxer
     lateinit var videoBuffer: MediaCodec.BufferInfo
-    lateinit var videoMediaCodecThread: VideoMediaCodecThread
+    lateinit var videoCodecThread: VideoCodecThread
     lateinit var surface: Surface
         private set
+    private var status: Status = Status()
 
     val width = 1920
     val height = 1080
@@ -62,18 +63,61 @@ class MediaCodecDecorate(val context: Context) {
             }
 
         })*/
+        videoCodecThread = VideoCodecThread(mediaMuxer, mediaCodec, videoBuffer, status)
+    }
+
+    private lateinit var audioCodec: MediaCodec
+    private lateinit var audioRecord: AudioRecord
+    private lateinit var audioCodecThread: AudioCodecThread
+
+    @SuppressLint("MissingPermission")
+    private fun initAudioCodec() {
+        val sampleRateInHz = 44100
+        val channelConfig = AudioFormat.CHANNEL_IN_STEREO
+        val audioFormat = AudioFormat.ENCODING_PCM_16BIT
+        val bufferSize = AudioRecord.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat)
+
+        audioCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
+        val mediaFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRateInHz, 2).apply {
+            val bitRate = 96000
+            setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
+            setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
+            val maxInoutSize = 8192
+            setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxInoutSize)
+        }
+        audioCodec.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+
+        audioRecord = AudioRecord(MediaRecorder.AudioSource.MIC, sampleRateInHz, channelConfig, audioFormat, bufferSize)
+        audioCodecThread = AudioCodecThread(mediaMuxer, audioCodec, audioRecord, bufferSize, status)
     }
 
     fun init(surface: Surface? = null) {
         initMediaMuxer()
         initMediaCodec(surface)
-        videoMediaCodecThread = VideoMediaCodecThread(mediaMuxer, mediaCodec, videoBuffer)
-        videoMediaCodecThread.start()
-//        mediaCodec.start()
+        initAudioCodec()
+    }
+
+    private var isStart = false
+
+    fun start() {
+        if (!isStart) {
+            videoCodecThread.start()
+            audioRecord.startRecording()
+            audioCodecThread.start()
+            isStart = true
+        }
     }
 
     fun release() {
-        videoMediaCodecThread.cancel()
+        status.isStop = true
+        audioRecord.stop()
+        audioCodec.release()
+        mediaMuxer.stop()
+        mediaMuxer.release()
     }
+
+    data class Status(var isStop: Boolean = false,
+                      var isVideoReady: AtomicBoolean = AtomicBoolean(false),
+                      var isAudioReady: AtomicBoolean = AtomicBoolean(false))
 
 }
