@@ -18,7 +18,7 @@ import androidx.core.app.ActivityCompat
  *    date   : 2022/10/25 18:12
  *    desc   :
  */
-class RecordFromCameraSurfaceActivity : AppCompatActivity() {
+class RecordFromCamera2SurfaceActivity : AppCompatActivity() {
 
     companion object {
         val TAG = MainActivity::class.java.simpleName
@@ -49,7 +49,7 @@ class RecordFromCameraSurfaceActivity : AppCompatActivity() {
             mediaCodecDecorate.release()
         }
         surfaceView = findViewById<TextureView>(R.id.texture_view)
-        mediaCodecDecorate = MediaCodecDecorate(this@RecordFromCameraSurfaceActivity)
+        mediaCodecDecorate = MediaCodecDecorate(this@RecordFromCamera2SurfaceActivity)
     }
 
     private fun initCamera() {
@@ -88,7 +88,7 @@ class RecordFromCameraSurfaceActivity : AppCompatActivity() {
                         captureRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
                         captureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
                         session.setRepeatingRequest(captureRequestBuilder.build(), null, cameraHandler)
-                        this@RecordFromCameraSurfaceActivity.cameraCaptureSession = session
+                        this@RecordFromCamera2SurfaceActivity.cameraCaptureSession = session
                     }
 
                     override fun onConfigureFailed(session: CameraCaptureSession) {

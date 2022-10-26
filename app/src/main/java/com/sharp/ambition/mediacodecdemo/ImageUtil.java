@@ -74,7 +74,7 @@ public class ImageUtil {
     private static byte[] nv21;//width  height
     static byte[] nv21_rotated;
 
-    public static byte[] format(Image image) {
+    public static byte[] format(Image image, int height) {
         Image.Plane[] planes = image.getPlanes();
         // 重复使用同一批byte数组，减少gc频率
         if (y == null) {
@@ -89,11 +89,11 @@ public class ImageUtil {
         }
         if (nv21 == null) {
 //            实例化一次
-            nv21 = new byte[planes[0].getRowStride() * 1920 * 3 / 2];
-            nv21_rotated = new byte[planes[0].getRowStride() * 1920 * 3 / 2];
+            nv21 = new byte[planes[0].getRowStride() * height * 3 / 2];
+            nv21_rotated = new byte[planes[0].getRowStride() * height * 3 / 2];
         }
-        ImageUtil.yuvToNv21(y, u, v, nv21, planes[0].getRowStride(), 1920);
-        ImageUtil.nv21_rotate_to_90(nv21, nv21_rotated, planes[0].getRowStride(), 1920);
+        ImageUtil.yuvToNv21(y, u, v, nv21, planes[0].getRowStride(), height);
+        ImageUtil.nv21_rotate_to_90(nv21, nv21_rotated, planes[0].getRowStride(), height);
         return ImageUtil.nv21toNV12(nv21_rotated);
     }
 

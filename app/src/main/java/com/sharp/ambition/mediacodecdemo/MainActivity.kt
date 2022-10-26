@@ -19,10 +19,10 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, RecordFromProjectionActivity::class.java))
         }
         findViewById<Button>(R.id.btn_record_from_camera_surface).setOnClickListener {
-            startActivity(Intent(this, RecordFromCameraSurfaceActivity::class.java))
+            startActivity(Intent(this, RecordFromCamera2SurfaceActivity::class.java))
         }
         findViewById<Button>(R.id.btn_record_from_camera_yuv).setOnClickListener {
-            startActivity(Intent(this, RecordFromCameraYUVActivity::class.java))
+            startActivity(Intent(this, RecordFromCamera2YUVActivity::class.java))
         }
     }
 }
