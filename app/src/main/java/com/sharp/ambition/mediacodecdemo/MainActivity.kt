@@ -24,5 +24,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btn_record_from_camera_yuv).setOnClickListener {
             startActivity(Intent(this, RecordFromCamera2YUVActivity::class.java))
         }
+        findViewById<Button>(R.id.btn_character_animation_from_camera).setOnClickListener {
+            startActivity(Intent(this, CharacterAnimationFromCameraActivity::class.java))
+        }
     }
 }

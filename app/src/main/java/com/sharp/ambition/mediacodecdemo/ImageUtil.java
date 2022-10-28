@@ -1,6 +1,21 @@
 package com.sharp.ambition.mediacodecdemo;
 
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.ImageFormat;
+import android.graphics.Matrix;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.media.Image;
+import android.renderscript.Allocation;
+import android.renderscript.Element;
+import android.renderscript.RenderScript;
+import android.renderscript.ScriptIntrinsicYuvToRGB;
+import android.renderscript.Type;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 /**
  * author : fengqiao
@@ -172,5 +187,68 @@ public class ImageUtil {
         }
         return output;
     }
+
+    public static Bitmap nv21ToBitmap(byte[] nv21, int width, int height) {
+        Bitmap bitmap = null;
+        try {
+            YuvImage image = new YuvImage(nv21, ImageFormat.NV21, width, height, null);
+            ByteArrayOutputStream stream = new ByteArrayOutputStream();
+            //输出到对应流
+            image.compressToJpeg(new Rect(0, 0, width, height), 100, stream);
+            //对应字节流生成bitmap
+            bitmap = BitmapFactory.decodeByteArray(stream.toByteArray(), 0, stream.size());
+            stream.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return bitmap;
+    }
+
+
+    public static Bitmap test(Image mImage, Context context, int displayWidth, int displayHeight) {
+        displayWidth = mImage.getWidth();
+        displayHeight = mImage.getHeight();
+        Image.Plane Y = mImage.getPlanes()[0];
+        Image.Plane U = mImage.getPlanes()[1];
+        Image.Plane V = mImage.getPlanes()[2];
+
+        int Yb = Y.getBuffer().remaining();
+        int Ub = U.getBuffer().remaining();
+        int Vb = V.getBuffer().remaining();
+
+        byte[] data = new byte[Yb + Ub + Vb];
+
+        Y.getBuffer().get(data, 0, Yb);
+        V.getBuffer().get(data, Yb, Vb);
+        U.getBuffer().get(data, Yb + Vb, Ub);
+
+        RenderScript rs = RenderScript.create(context);
+        ScriptIntrinsicYuvToRGB yuvToRgbIntrinsic = ScriptIntrinsicYuvToRGB.create(rs, Element.U8_4(rs));
+
+        Type.Builder yuvType = new Type.Builder(rs, Element.U8(rs)).setX(data.length);
+        Allocation in = Allocation.createTyped(rs, yuvType.create(), Allocation.USAGE_SCRIPT);
+
+        Type.Builder rgbaType = new Type.Builder(rs, Element.RGBA_8888(rs)).setX(displayWidth).setY(displayHeight);
+        Allocation out = Allocation.createTyped(rs, rgbaType.create(), Allocation.USAGE_SCRIPT);
+
+        final Bitmap bmpout = Bitmap.createBitmap(displayWidth, displayHeight, Bitmap.Config.ARGB_8888);
+
+        in.copyFromUnchecked(data);
+
+        yuvToRgbIntrinsic.setInput(in);
+        yuvToRgbIntrinsic.forEach(out);
+        out.copyTo(bmpout);
+
+        Matrix matrix = new Matrix();
+        // 缩放原图
+        matrix.postScale(1f, 1f);
+        // 向左旋转45度，参数为正则向右旋转
+        matrix.postRotate(90);
+        //bmp.getWidth(), 500分别表示重绘后的位图宽高
+        Bitmap dstbmp = Bitmap.createBitmap(bmpout, 0, 0, bmpout.getWidth(), bmpout.getHeight(),
+                matrix, true);
+        return dstbmp;
+    }
+
 }
 

@@ -43,6 +43,8 @@
             android:exported="true">
         </activity>
 
+        <activity android:name=".CharacterAnimationFromCameraActivity" />
+
         <service android:name=".MediaCodecService"
             android:enabled="true"
             android:foregroundServiceType="mediaProjection" />

@@ -25,5 +25,11 @@
         android:layout_height="wrap_content"
         android:text="录制根据相机yuv" />
 
+    <Button
+        android:id="@+id/btn_character_animation_from_camera"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="录制根据相机yuv" />
+
 
 </LinearLayout>
