@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "com_sharp_ambition_mediacodecdemo_NativeBridge.h"
+#include "rtmp.h"
+
 #define TAG "CamCapture"
 
 uint8_t *buf;
@@ -141,4 +143,25 @@ Java_com_sharp_ambition_mediacodecdemo_NativeBridge_yuvToBuffer(JNIEnv *env, job
     free(buf);
     free (I420Buff);
     return ret;
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL Java_com_sharp_ambition_mediacodecdemo_NativeBridge_connect
+        (JNIEnv *env, jobject thiz, jstring url_) {
+    const char *url = env->GetStringUTFChars(url_, 0);
+    RTMP *rtmp = RTMP_Alloc();
+    RTMP_Init(rtmp);
+    return 0;
+}
+
+extern "C"
+JNIEXPORT void JNICALL Java_com_sharp_ambition_mediacodecdemo_NativeBridge_disConnect
+        (JNIEnv *env, jobject thiz) {
+
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL Java_com_sharp_ambition_mediacodecdemo_NativeBridge_sendData
+        (JNIEnv *env, jobject thiz, jbyteArray data, jint len, jint type, jlong tms) {
+    return 0;
 }

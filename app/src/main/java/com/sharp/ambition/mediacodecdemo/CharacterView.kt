@@ -28,7 +28,7 @@ class CharacterView @JvmOverloads constructor(
     SurfaceView(context, attrs, defStyleAttr) {
 
     private var paint: Paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val bl = 8
+    private val bl = 12
     private var pixelsWidth = 400
     private var pixelsHeight = 400
     private var pixels: IntArray = IntArray(pixelsWidth * pixelsHeight)
@@ -37,7 +37,7 @@ class CharacterView @JvmOverloads constructor(
 
     init {
         paint.style = Paint.Style.FILL
-        paint.textSize = bl* 1.5F
+        paint.textSize = bl * 1.5F
         setLayerType(View.LAYER_TYPE_HARDWARE, null)
         holder.addCallback(object : SurfaceHolder.Callback {
 

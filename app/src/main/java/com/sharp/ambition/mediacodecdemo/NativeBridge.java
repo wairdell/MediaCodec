@@ -1,7 +1,5 @@
 package com.sharp.ambition.mediacodecdemo;
 
-import android.media.Image;
-
 import java.nio.ByteBuffer;
 
 /**
@@ -15,7 +13,7 @@ public class NativeBridge {
         System.loadLibrary("bridge-lib");
     }
 
-    public byte[] yuvToBuffer(Image image) {
+    /*public byte[] yuvToBuffer(Image image) {
         //val buffer: ByteArray = ImageUtil.format(image, height)
         Image.Plane[] planes = image.getPlanes();
         Image.Plane yPlane = planes[0];
@@ -33,9 +31,15 @@ public class NativeBridge {
             image.getWidth(),
             image.getHeight());
         return buffer;
-    }
+    }*/
 
     public native byte[] yuvToBuffer(ByteBuffer y, ByteBuffer u, ByteBuffer v, int yPixelStride, int yRowStride,
                                      int uPixelStride, int uRowStride, int vPixelStride, int vRowStride, int imgWidth, int imgHeight);
 
+
+    public native boolean connect(String url);
+
+    public native void disConnect();
+
+    public native boolean sendData(byte[] data, int len, int type, long tms);
 }

@@ -14,6 +14,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import com.android.rtmpvideo.YuvEngineWrap
 import java.nio.ByteBuffer
 import java.nio.ReadOnlyBufferException
 import kotlin.experimental.inv
@@ -57,18 +58,25 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
         initCamera()
         findViewById<Button>(R.id.btn_camera_start).setOnClickListener {
             openCamera()
+            publisher.start()
         }
         findViewById<Button>(R.id.btn_camera_stop).setOnClickListener {
             release()
         }
         textureView = findViewById<TextureView>(R.id.texture_view)
 
-        initImageReader()
+
+        publisher = Publisher(this)
     }
 
     fun release() {
+        if (cameraCaptureSession == null) {
+            return
+        }
+        publisher.stop()
         cameraCaptureSession?.abortCaptures()
         cameraCaptureSession?.close()
+        cameraCaptureSession = null
         imageReader.close()
         mediaCodec.stop()
         mediaCodec.release()
@@ -99,6 +107,7 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             return
         }
+        initImageReader()
         cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
             override fun onOpened(camera: CameraDevice) {
                 Log.d(TAG, "onOpened() called with: camera = $camera")
@@ -168,6 +177,11 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
         bufferInfo = MediaCodec.BufferInfo()
     }
 
+    /*private val outWidth = IntArray(1)
+    private val outHeight = IntArray(1)
+    private val yuvBuffer = ByteArray(this.width * this.height * 3 / 2)
+    private val rotateYuvBuffer = ByteArray(this.width * this.height * 3 / 2)*/
+
     fun onImageAvailable(reader: ImageReader) {
         Log.d(TAG, "onImageAvailable() called with: reader = $reader")
         val image: Image = reader.acquireNextImage() ?: return
@@ -178,6 +192,8 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
         val buffer: ByteArray = nv21*/
 //        val buffer: ByteArray = ImageUtil.rotateNV21_working(nv21, image.width, image.height, 90)
         val buffer: ByteArray = YUV_420_888toNV21(image)
+        /*YuvEngineWrap.newInstance().Nv21ToNv12(buffer, yuvBuffer, width, height);
+        YuvEngineWrap.newInstance().Nv12ClockWiseRotate90(yuvBuffer, width, height, rotateYuvBuffer, outWidth, outHeight);*/
         /*val nv21_rotated = ByteArray(buffer.size)
         ImageUtil.nv21_rotate_to_90(buffer, nv21_rotated, height, width)*/
         encodeFrame(buffer)
@@ -211,6 +227,7 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
                 bufferInfo.presentationTimeUs = bufferInfo.presentationTimeUs - pts
                 mediaMuxer.writeSampleData(videoTrackIndex, outputBuffer, bufferInfo)
                 Log.d(VideoCodecThread.TAG, "视频秒数时间戳 = " + bufferInfo.presentationTimeUs / 1000000.0f)
+                publisher(outputBuffer)
                 mediaCodec.releaseOutputBuffer(outputBufferIndex, false)
                 outputBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 0)
             }
@@ -224,6 +241,29 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
     private fun computePresentationTime(frameIndex: Long): Long {
         //第一帧添加个缓存时间
         return 132 + frameIndex * 1000000 / 15
+    }
+
+    private var mSpsNalu: ByteArray? = null
+    private var mPpsNalu: ByteArray? = null
+    private lateinit var publisher: Publisher
+
+    private fun publisher(outputBuffer: ByteBuffer) {
+        val outData: ByteArray = ByteArray(bufferInfo.size)
+        outputBuffer.get(outData)
+        if (mSpsNalu != null && mPpsNalu != null) {
+            val naluType: Int = 0x1f and outData[4].toInt()
+            publisher.outputVideoFrame(outData, outData.size, (bufferInfo.presentationTimeUs / 1000).toInt())
+        } else {
+            val spsPpsBuffer = ByteBuffer.wrap(outData)
+            if (spsPpsBuffer.int == 0x00000001 && spsPpsBuffer[4] == 0x67.toByte()) {
+                mSpsNalu = ByteArray(outData.size - 4 - 8)
+                mPpsNalu = ByteArray(4)
+                spsPpsBuffer.get(mSpsNalu!!, 0, mSpsNalu!!.size)
+                spsPpsBuffer.int
+                spsPpsBuffer.get(mPpsNalu!!, 0, mPpsNalu!!.size)
+                publisher.outputVideoSpsPps(mSpsNalu!!, mSpsNalu!!.size, mPpsNalu!!, mPpsNalu!!.size, (bufferInfo.presentationTimeUs / 1000).toInt())
+            }
+        }
     }
 
     private fun YUV_420_888toNV21(image: Image): ByteArray {
@@ -286,6 +326,11 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
             }
         }
         return nv21
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        release()
     }
 
 }

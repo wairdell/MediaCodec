@@ -25,7 +25,13 @@ android {
 
     externalNativeBuild {
         cmake {
-            path "CMakeLists.txt"
+            path file("src/main/cpp/CMakeLists.txt")
+        }
+    }
+
+    sourceSets{
+        main{
+            jniLibs.srcDirs=['src/main/cpp/lib']
         }
     }
 

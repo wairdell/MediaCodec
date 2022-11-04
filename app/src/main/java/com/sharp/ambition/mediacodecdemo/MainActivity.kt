@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
+import com.android.rtmpvideo.RtmpActivity
 
 
 class MainActivity : AppCompatActivity() {
@@ -25,7 +26,7 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, RecordFromCamera2YUVActivity::class.java))
         }
         findViewById<Button>(R.id.btn_character_animation_from_camera).setOnClickListener {
-            startActivity(Intent(this, CharacterAnimationFromCameraActivity::class.java))
+            startActivity(Intent(this, RtmpActivity::class.java))
         }
     }
 }
