@@ -28,5 +28,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btn_character_animation_from_camera).setOnClickListener {
             startActivity(Intent(this, RtmpActivity::class.java))
         }
+        findViewById<Button>(R.id.btn_opengl).setOnClickListener {
+            startActivity(Intent(this, OpenGLActivity::class.java))
+        }
     }
 }

@@ -1,23 +1,29 @@
 package com.sharp.ambition.mediacodecdemo
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.ImageFormat
+import android.graphics.SurfaceTexture
 import android.hardware.camera2.*
 import android.media.*
 import android.os.*
 import android.util.Log
+import android.util.Size
 import android.view.Surface
 import android.view.TextureView
+import android.view.WindowManager
 import android.widget.Button
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.android.rtmpvideo.YuvEngineWrap
+import com.android.rtmpvideo.YuvOperateJni.Nv12ClockWiseRotate90
 import java.nio.ByteBuffer
 import java.nio.ReadOnlyBufferException
 import kotlin.experimental.inv
+import kotlin.math.abs
 
 /**
  * author : fengqiao
@@ -44,28 +50,30 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
     private lateinit var mediaCodec: MediaCodec
     private lateinit var mediaMuxer: MediaMuxer
     private lateinit var bufferInfo: MediaCodec.BufferInfo
-    val width = 1920
-    val height = 1080
+    var width = 1280
+    var height = 720
     private var videoTrackIndex = -1
     private var pts = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_record_from_camera)
+        textureView = findViewById<TextureView>(R.id.texture_view)
         permissionResultLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
 
         }
         initCamera()
         findViewById<Button>(R.id.btn_camera_start).setOnClickListener {
+            val previewSize = getBestPreviewSize()
+            width = previewSize.width
+            height = previewSize.height
+            Log.e(TAG, "previewSize => $previewSize");
             openCamera()
             publisher.start()
         }
         findViewById<Button>(R.id.btn_camera_stop).setOnClickListener {
             release()
         }
-        textureView = findViewById<TextureView>(R.id.texture_view)
-
-
         publisher = Publisher(this)
     }
 
@@ -74,10 +82,10 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
             return
         }
         publisher.stop()
+        imageReader.close()
         cameraCaptureSession?.abortCaptures()
         cameraCaptureSession?.close()
         cameraCaptureSession = null
-        imageReader.close()
         mediaCodec.stop()
         mediaCodec.release()
         mediaMuxer.stop()
@@ -91,16 +99,63 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
             val cameraCharacteristics: CameraCharacteristics =
                 cameraManager.getCameraCharacteristics(cameraId)
             val facing = cameraCharacteristics.get(CameraCharacteristics.LENS_FACING)
-            if (facing != null && facing == CameraCharacteristics.LENS_FACING_FRONT) {
-                continue
-            }
             this.cameraId = cameraId
             this.cameraCharacteristics = cameraCharacteristics
+            if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
+                break
+            }
         }
-
         val backgroundThread = HandlerThread(TAG, Process.THREAD_PRIORITY_BACKGROUND)
         backgroundThread.start()
         cameraHandler = Handler(backgroundThread.looper)
+    }
+
+    private fun getBestPreviewSize(): Size {
+        cameraCharacteristics?.let {
+            val map = it.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP) ?: return Size(width, height)
+            val sizes = map.getOutputSizes(SurfaceTexture::class.java)
+            return findSuitablePreviewSize(sizes, textureView.height, textureView.width)
+        }
+        return Size(width, height)
+    }
+
+    private fun getCameraOrientation(): Int {
+        return cameraCharacteristics?.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
+    }
+
+    fun displayRotation(context: Context): Int {
+        return when((context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.rotation) {
+            Surface.ROTATION_0   -> 0
+            Surface.ROTATION_90  -> 90
+            Surface.ROTATION_180 -> 180
+            Surface.ROTATION_270 -> 270
+            else -> 0
+        }
+    }
+
+    private fun findSuitablePreviewSize(supportedPreviewSizes: Array<Size>, previewWidth: Int, previewHeight: Int): Size {
+        Log.e("TAG", "previewSize => ${previewWidth}x${previewHeight}")
+        val originalAspectRatio = previewWidth / previewHeight.toDouble()
+        var previewSize: Size? = null
+        var lastFit = Double.MAX_VALUE
+        var currentFit: Double = 0.0
+        for (size in supportedPreviewSizes) {
+            if (size.width == previewWidth && size.height == previewHeight) {
+                previewSize = size
+                break
+            } else if (previewSize == null) {
+                lastFit = abs((size.width / size.height.toDouble()) - originalAspectRatio)
+                previewSize = size
+            } else {
+                currentFit = abs((size.width / size.height.toDouble()) - originalAspectRatio)
+                if (currentFit < lastFit && abs(previewWidth - size.width) <= abs(previewWidth - previewSize.width)) {
+                    previewSize = size
+                    lastFit = currentFit
+                }
+            }
+            Log.e("TAG", "size => ${size}")
+        }
+        return previewSize ?: Size(previewWidth, previewHeight)
     }
 
     private fun openCamera() {
@@ -120,6 +175,9 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
                     override fun onConfigured(session: CameraCaptureSession) {
                         Log.d(TAG, "onConfigured() called with: session = $session")
                         val captureRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+                        val angle = (getCameraOrientation() - displayRotation(this@RecordFromCamera2YUVActivity) + 360) % 360
+                        Log.e(TAG, "angle => ${angle}")
+                        captureRequestBuilder.set(CaptureRequest.JPEG_ORIENTATION, angle)
                         captureRequestBuilder.addTarget(imageReader.surface)
                         captureRequestBuilder.addTarget(preViewSurface)
                         captureRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
@@ -156,7 +214,7 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
     private fun initMediaMuxer() {
         val filePath = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)!!.absolutePath + "/" + System.currentTimeMillis().toString() + ".mp4"
         mediaMuxer = MediaMuxer(filePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-        mediaMuxer.setOrientationHint(90)
+//        mediaMuxer.setOrientationHint(90)
     }
 
     private fun initMediaCodec() {
@@ -168,7 +226,7 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
             setInteger(MediaFormat.KEY_BIT_RATE, width * height * 4)
             //每秒关键帧数
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
-            setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileHigh)
+//            setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileHigh)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel31)
             }
@@ -183,15 +241,15 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
     private val rotateYuvBuffer = ByteArray(this.width * this.height * 3 / 2)*/
 
     fun onImageAvailable(reader: ImageReader) {
-        Log.d(TAG, "onImageAvailable() called with: reader = $reader")
+//        Log.d(TAG, "onImageAvailable() called with: reader = $reader")
         val image: Image = reader.acquireNextImage() ?: return
-        /*val I420size: Int = image.width * image.height * 3 / 2;
+        val I420size: Int = image.width * image.height * 3 / 2;
         val nv21 = ByteArray(I420size)
         //提取YUV填充nv21数据
         ImageUtil.YUVToNV21_NV12(image, nv21, image.width, image.height,"NV21")
-        val buffer: ByteArray = nv21*/
+        val buffer: ByteArray = nv21
 //        val buffer: ByteArray = ImageUtil.rotateNV21_working(nv21, image.width, image.height, 90)
-        val buffer: ByteArray = YUV_420_888toNV21(image)
+//        val buffer: ByteArray = ImageUtil.YUV_420_888toNV21(image)
         /*YuvEngineWrap.newInstance().Nv21ToNv12(buffer, yuvBuffer, width, height);
         YuvEngineWrap.newInstance().Nv12ClockWiseRotate90(yuvBuffer, width, height, rotateYuvBuffer, outWidth, outHeight);*/
         /*val nv21_rotated = ByteArray(buffer.size)
@@ -248,10 +306,12 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
     private lateinit var publisher: Publisher
 
     private fun publisher(outputBuffer: ByteBuffer) {
-        val outData: ByteArray = ByteArray(bufferInfo.size)
+        var outData: ByteArray = ByteArray(bufferInfo.size)
         outputBuffer.get(outData)
         if (mSpsNalu != null && mPpsNalu != null) {
             val naluType: Int = 0x1f and outData[4].toInt()
+            /*val rotateData: ByteArray = ByteArray(bufferInfo.size)
+            YuvEngineWrap.newInstance().Nv21ClockWiseRotate90(outData, width, height, rotateData, IntArray(1), IntArray(1))*/
             publisher.outputVideoFrame(outData, outData.size, (bufferInfo.presentationTimeUs / 1000).toInt())
         } else {
             val spsPpsBuffer = ByteBuffer.wrap(outData)
@@ -264,68 +324,6 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
                 publisher.outputVideoSpsPps(mSpsNalu!!, mSpsNalu!!.size, mPpsNalu!!, mPpsNalu!!.size, (bufferInfo.presentationTimeUs / 1000).toInt())
             }
         }
-    }
-
-    private fun YUV_420_888toNV21(image: Image): ByteArray {
-        //https://stackoverflow.com/questions/52726002/camera2-captured-picture-conversion-from-yuv-420-888-to-nv21/52740776#52740776
-        val width = image.width
-        val height = image.height
-        val ySize = width * height
-        val uvSize = width * height / 4
-        val nv21 = ByteArray(ySize + uvSize * 2)
-        val yBuffer = image.planes[0].buffer // Y
-        val uBuffer = image.planes[1].buffer // U
-        val vBuffer = image.planes[2].buffer // V
-        var rowStride = image.planes[0].rowStride
-        assert(image.planes[0].pixelStride === 1)
-        var pos = 0
-        if (rowStride == width) { // likely
-            yBuffer[nv21, 0, ySize]
-            pos += ySize
-        } else {
-            var yBufferPos = -rowStride.toLong() // not an actual position
-            while (pos < ySize) {
-                yBufferPos += rowStride.toLong()
-                yBuffer.position(yBufferPos.toInt())
-                yBuffer[nv21, pos, width]
-                pos += width
-            }
-        }
-        rowStride = image.planes[2].rowStride
-        val pixelStride = image.planes[2].pixelStride
-        assert(rowStride == image.planes[1].rowStride)
-        assert(pixelStride == image.planes[1].pixelStride)
-        if (pixelStride == 2 && rowStride == width && uBuffer[0] == vBuffer[1]) {
-            // maybe V an U planes overlap as per NV21, which means vBuffer[1] is alias of uBuffer[0]
-            val savePixel = vBuffer[1]
-            try {
-                vBuffer.put(1, savePixel.inv())
-                if (uBuffer[0] == savePixel.inv()) {
-                    vBuffer.put(1, savePixel)
-                    vBuffer.position(0)
-                    uBuffer.position(0)
-                    vBuffer[nv21, ySize, 1]
-                    uBuffer[nv21, ySize + 1, uBuffer.remaining()]
-                    return nv21 // shortcut
-                }
-            } catch (ex: ReadOnlyBufferException) {
-                // unfortunately, we cannot check if vBuffer and uBuffer overlap
-            }
-
-            // unfortunately, the check failed. We must save U and V pixel by pixel
-            vBuffer.put(1, savePixel)
-        }
-
-        // other optimizations could check if (pixelStride == 1) or (pixelStride == 2),
-        // but performance gain would be less significant
-        for (row in 0 until height / 2) {
-            for (col in 0 until width / 2) {
-                val vuPos = col * pixelStride + row * rowStride
-                nv21[pos++] = vBuffer[vuPos]
-                nv21[pos++] = uBuffer[vuPos]
-            }
-        }
-        return nv21
     }
 
     override fun onDestroy() {

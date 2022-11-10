@@ -8,8 +8,8 @@
 
     <com.sharp.ambition.mediacodecdemo.CharacterView
         android:id="@+id/character_view"
-        android:layout_width="1080px"
-        android:layout_height="1920px"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         app:layout_constraintTop_toBottomOf="@+id/btn_camera_stop"
         app:layout_constraintStart_toStartOf="parent"/>
 
