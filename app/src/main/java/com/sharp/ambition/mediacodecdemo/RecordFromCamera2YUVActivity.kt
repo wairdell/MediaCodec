@@ -12,6 +12,7 @@ import android.util.Log
 import android.util.Size
 import android.view.Surface
 import android.view.TextureView
+import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import androidx.activity.result.ActivityResultLauncher
@@ -50,6 +51,7 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
     private lateinit var mediaCodec: MediaCodec
     private lateinit var mediaMuxer: MediaMuxer
     private lateinit var bufferInfo: MediaCodec.BufferInfo
+    private var glSurfaceView: DisplayShapeView? = null
     var width = 1280
     var height = 720
     private var videoTrackIndex = -1
@@ -73,6 +75,9 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.btn_camera_stop).setOnClickListener {
             release()
+        }
+        glSurfaceView = findViewById<DisplayShapeView>(R.id.gl_surface_view).apply {
+            paramRenderer = VideoRenderer(this@RecordFromCamera2YUVActivity)
         }
         publisher = Publisher(this)
     }
@@ -166,7 +171,13 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
         cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
             override fun onOpened(camera: CameraDevice) {
                 Log.d(TAG, "onOpened() called with: camera = $camera")
-                preViewSurface = Surface(textureView.surfaceTexture)
+                preViewSurface = glSurfaceView?.let {
+                    val surfaceTexture = it.getSurfaceTexture()
+                    surfaceTexture?.setDefaultBufferSize(it.width, it.height)
+                    it.initDefMatrix(width, height)
+                    Log.e(TAG, "surfaceTexture => $surfaceTexture")
+                    Surface(surfaceTexture)
+                } ?:  Surface(textureView.surfaceTexture)
                 initMediaCodec()
                 initMediaMuxer()
                 mediaCodec.start()
@@ -177,7 +188,7 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
                         val captureRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
                         val angle = (getCameraOrientation() - displayRotation(this@RecordFromCamera2YUVActivity) + 360) % 360
                         Log.e(TAG, "angle => ${angle}")
-                        captureRequestBuilder.set(CaptureRequest.JPEG_ORIENTATION, angle)
+//                        captureRequestBuilder.set(CaptureRequest.JPEG_ORIENTATION, angle)
                         captureRequestBuilder.addTarget(imageReader.surface)
                         captureRequestBuilder.addTarget(preViewSurface)
                         captureRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
@@ -242,6 +253,7 @@ class RecordFromCamera2YUVActivity : AppCompatActivity() {
 
     fun onImageAvailable(reader: ImageReader) {
 //        Log.d(TAG, "onImageAvailable() called with: reader = $reader")
+        findViewById<DisplayShapeView>(R.id.gl_surface_view).requestRender()
         val image: Image = reader.acquireNextImage() ?: return
         val I420size: Int = image.width * image.height * 3 / 2;
         val nv21 = ByteArray(I420size)

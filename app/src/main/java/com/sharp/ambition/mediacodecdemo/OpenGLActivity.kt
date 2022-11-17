@@ -24,7 +24,9 @@ class OpenGLActivity : AppCompatActivity() {
 //        gLSurfaceView = findViewById<GLSurfaceView>(R.id.gl_surface_view)
 //        gLSurfaceView.setRenderer(OpenGLRenderer())
 
-        setContentView(DisplayShapeView(this))
+        var displayShapeView = DisplayShapeView(this)
+        displayShapeView.paramRenderer = ImageRenderer(this)
+        setContentView(displayShapeView)
     }
 
 

@@ -129,6 +129,8 @@ public class ImageUtil {
         planes[1].getBuffer().get(uRawSrcBytes);
         planes[2].getBuffer().get(vRawSrcBytes);
         int j = 0, k = 0;
+        int uPixelStride = planes[1].getPixelStride();
+        int yPixelStride = planes[2].getPixelStride();
         boolean flag = "NV21".equals(type);
         for (int i = 0; i < nv21.length; i++) {
             if (i < w * h) {
@@ -139,12 +141,12 @@ public class ImageUtil {
                     //若NV21类型 则Y分量分配完后第一个将是V分量
                     nv21[i] = vRawSrcBytes[j];
                     //PixelStride有用数据步长 = 1紧凑按顺序填充，=2每间隔一个填充数据
-                    j += planes[1].getPixelStride();
+                    j += uPixelStride;
                 } else {
                     //若NV12类型 则Y分量分配完后第一个将是U分量
                     nv21[i] = uRawSrcBytes[k];
                     //PixelStride有用数据步长 = 1紧凑按顺序填充，=2每间隔一个填充数据
-                    k += planes[2].getPixelStride();
+                    k += yPixelStride;
                 }
                 //紧接着可以交错UV或者VU排列不停的改变flag标志即可交错排列
                 flag = !flag;

@@ -10,13 +10,19 @@
         android:id="@+id/character_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_constraintTop_toBottomOf="@+id/btn_camera_stop"
-        app:layout_constraintStart_toStartOf="parent"/>
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btn_camera_stop" />
 
     <TextureView
         android:id="@+id/texture_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
+    <com.sharp.ambition.mediacodecdemo.DisplayShapeView
+        android:id="@+id/gl_surface_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="visible" />
 
     <Button
         android:id="@+id/btn_camera_start"

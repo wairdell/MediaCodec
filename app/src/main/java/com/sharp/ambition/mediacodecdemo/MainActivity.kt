@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import com.android.rtmpvideo.RtmpActivity
+import com.sharp.ambition.mediacodecdemo.egl.EGLPlayerActivity
 
 
 class MainActivity : AppCompatActivity() {
@@ -30,6 +31,9 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.btn_opengl).setOnClickListener {
             startActivity(Intent(this, OpenGLActivity::class.java))
+        }
+        findViewById<Button>(R.id.btn_egl).setOnClickListener {
+            startActivity(Intent(this, EGLPlayerActivity::class.java))
         }
     }
 }

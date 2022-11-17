@@ -53,6 +53,8 @@
 
         <activity android:name=".OpenGLActivity" />
 
+        <activity android:name=".egl.EGLPlayerActivity" />
+
         <service android:name=".MediaCodecService"
             android:enabled="true"
             android:foregroundServiceType="mediaProjection" />

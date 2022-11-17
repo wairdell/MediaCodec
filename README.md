@@ -1,0 +1,7 @@
+- EGL 使用大致流程
+    - 创建和初始化 EGLDisplay、创建 EGLContext
+    - 创建 EGLSurface (eglCreateWindowSurface)
+    - 将 EGLSurface 和上下文绑定(eglMakeCurrent)
+    - 将缓存图像数据发送到设备进行显示(将缓存图像数据发送到设备进行显示,需要先调用 openGL 把数据渲染出来)
+    - 销毁 EGLSurface
+    - 
